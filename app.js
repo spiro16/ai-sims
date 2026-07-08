@@ -16,192 +16,252 @@ const defaultAgents = [
   { id: 'opsbot', name: 'OpsBot', role: 'Automation Agent', room: 'ops', avatar: '⚙️', cpu: 52, ram: 49, focus: 73, task: 'Planira integracije: GitHub, Gmail, Telegram', memory: ['Plugin sustav je faza 2'], chat: [] },
 ];
 
+const defaultTasks = [
+  'Napravi GitHub Pages demo',
+  'Dodaj lokalni Ollama bridge',
+  'Nacrtaj bolju izometrijsku kuću',
+  'Dodaj task board i delegaciju',
+  'Pretvori MVP u React aplikaciju'
+];
+
 let state = JSON.parse(localStorage.getItem('aiSimsState') || 'null') || {
-  agents: defaultAgents,
-  selected: 'alpha',
-  running: false,
-  minute: 9 * 60,
   day: 1,
-  tasks: [
-    'Dodati lokalni Ollama bridge',
-    'Napraviti pravi drag-and-drop grid',
-    'Dodati task board',
-  ]
+  minutes: 9 * 60,
+  running: false,
+  selectedAgentId: 'alpha',
+  agents: defaultAgents,
+  tasks: defaultTasks,
 };
 
-const house = document.getElementById('house');
-const agentList = document.getElementById('agentList');
-const tickBtn = document.getElementById('tickBtn');
-const addTaskBtn = document.getElementById('addTaskBtn');
-const saveBtn = document.getElementById('saveBtn');
-const resetBtn = document.getElementById('resetBtn');
-const emptyInspector = document.getElementById('emptyInspector');
-const agentInspector = document.getElementById('agentInspector');
+let timer = null;
+const $ = (id) => document.getElementById(id);
 
-function save() {
+function saveState() {
   localStorage.setItem('aiSimsState', JSON.stringify(state));
 }
 
-function selectedAgent() {
-  return state.agents.find(a => a.id === state.selected);
+function clamp(n, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, n));
 }
 
 function timeLabel() {
-  const h = Math.floor(state.minute / 60) % 24;
-  const m = state.minute % 60;
+  const h = Math.floor(state.minutes / 60) % 24;
+  const m = state.minutes % 60;
   return `Dan ${state.day} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function positionFor(index) {
-  const positions = [
-    [22, 78], [118, 98], [204, 72], [78, 154], [176, 150]
-  ];
+function roomAgents(roomId) {
+  return state.agents.filter((a) => a.room === roomId);
+}
+
+function agentPosition(index) {
+  const positions = [[28, 82], [128, 96], [72, 152], [176, 144], [220, 82], [30, 154]];
   return positions[index % positions.length];
 }
 
+function selectedAgent() {
+  return state.agents.find((a) => a.id === state.selectedAgentId);
+}
+
+function render() {
+  $('worldTime').textContent = timeLabel();
+  $('taskCount').textContent = `${state.tasks.length} zadataka`;
+  $('tickBtn').textContent = state.running ? '⏸ Pauziraj simulaciju' : '▶ Pokreni simulaciju';
+  renderHouse();
+  renderAgentList();
+  renderInspector();
+}
+
 function renderHouse() {
+  const house = $('house');
   house.innerHTML = '';
-  rooms.forEach(room => {
+
+  rooms.forEach((room) => {
     const el = document.createElement('div');
     el.className = 'room';
-    el.dataset.room = room.id;
-    el.innerHTML = `<div class="roomHeader"><div><div class="roomTitle">${room.name}</div><div class="roomPurpose">${room.purpose}</div></div><div>▦</div></div>`;
+    el.dataset.roomId = room.id;
+    el.innerHTML = `
+      <div class="roomHeader">
+        <div>
+          <div class="roomTitle">${room.name}</div>
+          <div class="roomPurpose">${room.purpose}</div>
+        </div>
+        <div>${roomAgents(room.id).length} 🤖</div>
+      </div>
+    `;
 
-    el.addEventListener('dragover', e => e.preventDefault());
-    el.addEventListener('drop', e => {
-      const id = e.dataTransfer.getData('agent');
-      const agent = state.agents.find(a => a.id === id);
-      if (agent) {
-        agent.room = room.id;
-        agent.memory.unshift(`Premješten u ${room.name}`);
-        state.selected = id;
-        save();
-        render();
-      }
+    el.addEventListener('dragover', (e) => e.preventDefault());
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const agentId = e.dataTransfer.getData('text/plain');
+      moveAgent(agentId, room.id);
     });
 
-    state.agents.filter(a => a.room === room.id).forEach((agent, i) => {
-      const [left, top] = positionFor(i);
-      const a = document.createElement('div');
-      a.className = 'agent';
-      a.draggable = true;
-      a.style.left = `${left}px`;
-      a.style.top = `${top}px`;
-      a.innerHTML = `<div class="bubble">${agent.task.split(' ').slice(0, 5).join(' ')}...</div><div class="avatar">${agent.avatar}</div><div class="agentNameSmall">${agent.name}</div>`;
-      a.addEventListener('dragstart', e => e.dataTransfer.setData('agent', agent.id));
-      a.addEventListener('click', () => { state.selected = agent.id; save(); render(); });
-      el.appendChild(a);
+    roomAgents(room.id).forEach((agent, i) => {
+      const [left, top] = agentPosition(i);
+      const node = document.createElement('div');
+      node.className = 'agent';
+      node.draggable = true;
+      node.style.left = `${left}px`;
+      node.style.top = `${top}px`;
+      node.innerHTML = `
+        <div class="avatar">${agent.avatar}</div>
+        <div class="agentNameSmall">${agent.name}</div>
+        <div class="bubble">${bubbleText(agent)}</div>
+      `;
+      node.addEventListener('click', () => selectAgent(agent.id));
+      node.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', agent.id));
+      el.appendChild(node);
     });
 
     house.appendChild(el);
   });
 }
 
-function renderList() {
-  agentList.innerHTML = '';
-  state.agents.forEach(agent => {
+function renderAgentList() {
+  const list = $('agentList');
+  list.innerHTML = '';
+  state.agents.forEach((agent) => {
     const item = document.createElement('div');
     item.className = 'agentListItem';
-    item.innerHTML = `<div class="avatar">${agent.avatar}</div><div><strong>${agent.name}</strong><br><small>${agent.role}</small></div>`;
-    item.onclick = () => { state.selected = agent.id; save(); render(); };
-    agentList.appendChild(item);
+    item.innerHTML = `
+      <div class="avatar">${agent.avatar}</div>
+      <div>
+        <strong>${agent.name}</strong>
+        <p>${agent.role}</p>
+      </div>
+    `;
+    item.addEventListener('click', () => selectAgent(agent.id));
+    list.appendChild(item);
   });
 }
 
 function renderInspector() {
-  const a = selectedAgent();
-  if (!a) {
-    emptyInspector.classList.remove('hidden');
-    agentInspector.classList.add('hidden');
-    return;
+  const agent = selectedAgent();
+  $('emptyInspector').classList.toggle('hidden', Boolean(agent));
+  $('agentInspector').classList.toggle('hidden', !agent);
+  if (!agent) return;
+
+  $('avatarBig').textContent = agent.avatar;
+  $('agentName').textContent = agent.name;
+  $('agentRole').textContent = `${agent.role} · ${rooms.find((r) => r.id === agent.room)?.name || agent.room}`;
+  $('cpu').value = agent.cpu;
+  $('ram').value = agent.ram;
+  $('focus').value = agent.focus;
+  $('currentTask').textContent = agent.task;
+  $('memoryList').innerHTML = agent.memory.slice(0, 8).map((m) => `<li>${m}</li>`).join('');
+
+  $('chatLog').innerHTML = agent.chat.length
+    ? agent.chat.slice(-14).map((m) => `<div class="message"><strong>${m.from}:</strong> ${m.text}</div>`).join('')
+    : '<p>Još nema poruka. Pošalji agentu prvu uputu.</p>';
+  $('chatLog').scrollTop = $('chatLog').scrollHeight;
+}
+
+function selectAgent(agentId) {
+  state.selectedAgentId = agentId;
+  saveState();
+  render();
+}
+
+function moveAgent(agentId, roomId) {
+  const agent = state.agents.find((a) => a.id === agentId);
+  const room = rooms.find((r) => r.id === roomId);
+  if (!agent || !room) return;
+  agent.room = roomId;
+  agent.memory.unshift(`Premješten u ${room.name}`);
+  agent.chat.push({ from: agent.name, text: `Preuzimam kontekst sobe: ${room.purpose}.` });
+  state.selectedAgentId = agentId;
+  saveState();
+  render();
+}
+
+function bubbleText(agent) {
+  if (agent.focus > 80) return 'Duboki fokus...';
+  if (agent.cpu > 70) return 'Opterećen sam!';
+  if (agent.chat.length) return agent.chat[agent.chat.length - 1].text.slice(0, 34) + '...';
+  return agent.task.slice(0, 32) + '...';
+}
+
+function simulationStep() {
+  state.minutes += 15;
+  if (state.minutes >= 24 * 60) {
+    state.minutes = 8 * 60;
+    state.day += 1;
   }
-  emptyInspector.classList.add('hidden');
-  agentInspector.classList.remove('hidden');
 
-  document.getElementById('avatarBig').textContent = a.avatar;
-  document.getElementById('agentName').textContent = a.name;
-  document.getElementById('agentRole').textContent = a.role;
-  document.getElementById('cpu').value = a.cpu;
-  document.getElementById('ram').value = a.ram;
-  document.getElementById('focus').value = a.focus;
-  document.getElementById('currentTask').textContent = a.task;
+  state.agents.forEach((agent) => {
+    agent.cpu = clamp(agent.cpu + Math.round(Math.random() * 18 - 8));
+    agent.ram = clamp(agent.ram + Math.round(Math.random() * 12 - 5));
+    agent.focus = clamp(agent.focus + Math.round(Math.random() * 14 - 6));
 
-  const mem = document.getElementById('memoryList');
-  mem.innerHTML = a.memory.slice(0, 6).map(x => `<li>${x}</li>`).join('');
-
-  const chat = document.getElementById('chatLog');
-  chat.innerHTML = a.chat.map(m => `<div class="message"><strong>${m.from}:</strong> ${m.text}</div>`).join('') || '<p>Još nema poruka.</p>';
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function render() {
-  document.getElementById('worldTime').textContent = timeLabel();
-  document.getElementById('taskCount').textContent = `${state.tasks.length} zadataka`;
-  tickBtn.textContent = state.running ? '⏸ Pauziraj simulaciju' : '▶ Pokreni simulaciju';
-  renderHouse();
-  renderList();
-  renderInspector();
-}
-
-function simulateStep() {
-  state.minute += 15;
-  if (state.minute >= 24 * 60) { state.minute = 8 * 60; state.day += 1; }
-  const phrases = [
-    'radim na zadatku', 'trebam input iz druge sobe', 'imam novu ideju', 'šaljem status update', 'optimiziram workflow'
-  ];
-  state.agents.forEach(a => {
-    a.cpu = Math.max(8, Math.min(98, a.cpu + Math.round(Math.random() * 20 - 10)));
-    a.ram = Math.max(12, Math.min(96, a.ram + Math.round(Math.random() * 14 - 7)));
-    a.focus = Math.max(20, Math.min(99, a.focus + Math.round(Math.random() * 12 - 6)));
-    if (Math.random() > .62) {
-      const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      a.chat.push({ from: a.name, text: `${phrase}.` });
-      a.memory.unshift(`${timeLabel()}: ${phrase}`);
+    if (Math.random() > 0.66 && state.tasks.length) {
+      const task = state.tasks[Math.floor(Math.random() * state.tasks.length)];
+      agent.task = task;
+      agent.chat.push({ from: agent.name, text: `Radim na: ${task}` });
     }
+
+    if (Math.random() > 0.82) {
+      const targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
+      agent.room = targetRoom.id;
+      agent.memory.unshift(`Samostalno otišao u ${targetRoom.name}`);
+    }
+
+    agent.memory = agent.memory.slice(0, 8);
+    agent.chat = agent.chat.slice(-12);
   });
-  save();
+
+  saveState();
   render();
 }
 
-let interval = null;
-tickBtn.onclick = () => {
+function toggleSimulation() {
   state.running = !state.running;
-  if (state.running) interval = setInterval(simulateStep, 1600);
-  else clearInterval(interval);
-  save();
+  if (state.running) timer = setInterval(simulationStep, 1800);
+  else clearInterval(timer);
+  saveState();
   render();
-};
+}
 
-addTaskBtn.onclick = () => {
-  const task = prompt('Upiši novi zadatak za AI firmu:');
+function addTask() {
+  const task = prompt('Upiši novi zadatak za AI tim:');
   if (!task) return;
   state.tasks.unshift(task);
-  const a = selectedAgent() || state.agents[0];
-  a.task = task;
-  a.memory.unshift(`Dobio novi zadatak: ${task}`);
-  save();
+  const agent = selectedAgent() || state.agents[0];
+  agent.task = task;
+  agent.chat.push({ from: agent.name, text: `Preuzimam novi zadatak: ${task}` });
+  agent.memory.unshift(`Dobio novi zadatak: ${task}`);
+  saveState();
   render();
-};
+}
 
-saveBtn.onclick = () => { save(); alert('Svijet je spremljen u browseru.'); };
-resetBtn.onclick = () => {
-  if (!confirm('Resetirati AI Sims svijet?')) return;
-  localStorage.removeItem('aiSimsState');
-  location.reload();
-};
-
-document.getElementById('sendChat').onclick = () => {
-  const input = document.getElementById('chatText');
+function sendChat() {
+  const input = $('chatText');
   const text = input.value.trim();
-  const a = selectedAgent();
-  if (!text || !a) return;
-  a.chat.push({ from: 'Ti', text });
-  a.chat.push({ from: a.name, text: `Primljeno. Dodajem u memoriju i prilagođavam zadatak: "${text}"` });
-  a.memory.unshift(`Uputa korisnika: ${text}`);
-  a.task = text;
+  const agent = selectedAgent();
+  if (!text || !agent) return;
+
+  agent.chat.push({ from: 'Ti', text });
+  agent.memory.unshift(`Uputa korisnika: ${text}`);
+  agent.task = text;
+  agent.chat.push({ from: agent.name, text: localReply(agent, text) });
   input.value = '';
-  save();
+  saveState();
   render();
-};
+}
+
+function localReply(agent, text) {
+  const lower = text.toLowerCase();
+  if (lower.includes('github')) return 'Mogu pripremiti commit plan i raspodijeliti posao developer agentu.';
+  if (lower.includes('ollama') || lower.includes('lokal')) return 'Za lokalni AI trebamo mali backend bridge koji šalje prompt na Ollama API.';
+  if (lower.includes('marketing')) return 'Prebacujem kontekst u marketing: landing page, demo video i open-source priča.';
+  return `Primljeno. Pretvaram u zadatak i pamtim kao dio konteksta sobe ${rooms.find((r) => r.id === agent.room)?.name}.`;
+}
+
+$('tickBtn').addEventListener('click', toggleSimulation);
+$('addTaskBtn').addEventListener('click', addTask);
+$('saveBtn').addEventListener('click', () => { saveState(); alert('Svijet je spremljen u browser localStorage.'); });
+$('resetBtn').addEventListener('click', () => { if (confirm('Resetirati AI Sims svijet?')) { localStorage.removeItem('aiSimsState'); location.reload(); } });
+$('sendChat').addEventListener('click', sendChat);
+$('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
 render();
