@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Sims OS</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div>
+          <h1>AI Sims OS</h1>
+          <p>Lokalni kontrolni centar za AI agente</p>
+        </div>
+      </div>
+
+      <button id="tickBtn" class="primary">▶ Pokreni simulaciju</button>
+      <button id="addTaskBtn">+ Dodaj zadatak</button>
+      <button id="saveBtn">💾 Spremi svijet</button>
+      <button id="resetBtn">↺ Reset</button>
+
+      <section>
+        <h2>Agenti</h2>
+        <div id="agentList"></div>
+      </section>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <h2>AI kuća</h2>
+          <p>Vuci agente između soba. Klikni agenta za detalje.</p>
+        </div>
+        <div class="stats">
+          <span id="worldTime">Dan 1 · 09:00</span>
+          <span id="taskCount">0 zadataka</span>
+        </div>
+      </header>
+
+      <section id="house" class="house"></section>
+    </main>
+
+    <aside class="inspector">
+      <div id="emptyInspector" class="empty">
+        <h2>Odaberi agenta</h2>
+        <p>Klikni na agenta u sobi ili listi da vidiš memoriju, zadatke, status i chat.</p>
+      </div>
+      <div id="agentInspector" class="hidden">
+        <div class="agentHeader">
+          <div id="avatarBig" class="avatar big">🤖</div>
+          <div>
+            <h2 id="agentName"></h2>
+            <p id="agentRole"></p>
+          </div>
+        </div>
+
+        <div class="meters">
+          <label>CPU <progress id="cpu" max="100"></progress></label>
+          <label>RAM <progress id="ram" max="100"></progress></label>
+          <label>Fokus <progress id="focus" max="100"></progress></label>
+        </div>
+
+        <section>
+          <h3>Trenutni zadatak</h3>
+          <p id="currentTask" class="cardText"></p>
+        </section>
+
+        <section>
+          <h3>Memorija</h3>
+          <ul id="memoryList"></ul>
+        </section>
+
+        <section>
+          <h3>Chat</h3>
+          <div id="chatLog" class="chat"></div>
+          <div class="chatInput">
+            <input id="chatText" placeholder="Pošalji uputu agentu..." />
+            <button id="sendChat">Pošalji</button>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
