@@ -1,267 +1,35 @@
-const rooms = [
-  { id: 'ceo', name: 'CEO soba', purpose: 'Strategija i odluke' },
-  { id: 'dev', name: 'Dev Room', purpose: 'Kod, testovi i deploy' },
-  { id: 'research', name: 'Research', purpose: 'Istraživanje i analiza' },
-  { id: 'marketing', name: 'Marketing', purpose: 'Content, SEO i kampanje' },
-  { id: 'finance', name: 'Finance', purpose: 'Troškovi i KPI' },
-  { id: 'ops', name: 'Operations', purpose: 'Automacije i alati' },
+const rooms=[
+{id:'ceo',name:'CEO Office',x:0,y:0,color:'#e8b4c4',furniture:[['🗄️',25,45],['🪑',130,105],['💻',115,45]]},
+{id:'dev',name:'Development',x:220,y:0,color:'#9fc7ef',furniture:[['🖥️',35,45],['🖥️',125,45],['☕',155,130]]},
+{id:'research',name:'Research Lab',x:440,y:0,color:'#a9d9c0',furniture:[['🔬',32,52],['📚',130,48],['🪴',155,135]]},
+{id:'marketing',name:'Creative Studio',x:0,y:200,color:'#f1ce8e',furniture:[['🎨',30,48],['📸',130,48],['🛋️',105,130]]},
+{id:'qa',name:'QA & Review',x:220,y:200,color:'#c5b4e8',furniture:[['🧪',30,48],['🖥️',125,48],['🧯',160,135]]},
+{id:'lounge',name:'Team Lounge',x:440,y:200,color:'#b8d993',furniture:[['🛋️',30,58],['☕',125,55],['🎮',145,135]]}
 ];
-
-const defaultAgents = [
-  { id: 'alpha', name: 'Alpha', role: 'CEO Agent', room: 'ceo', avatar: '🧠', cpu: 34, ram: 46, focus: 82, task: 'Razrađuje plan za AI Sims OS', memory: ['Vlasnik želi Sims-style UI', 'Prioritet: launch bez ZIP-a'], chat: [] },
-  { id: 'coder', name: 'Coder', role: 'Developer Agent', room: 'dev', avatar: '👨‍💻', cpu: 58, ram: 64, focus: 71, task: 'Gradi frontend simulaciju', memory: ['Stack: HTML/CSS/JS sada, React kasnije', 'Treba dodati Ollama bridge'], chat: [] },
-  { id: 'researcher', name: 'Researcher', role: 'Research Agent', room: 'research', avatar: '🔎', cpu: 24, ram: 38, focus: 88, task: 'Prikuplja ideje za agente i sobe', memory: ['Agenti trebaju delegirati posao', 'Vizual: Sims + RimWorld'], chat: [] },
-  { id: 'writer', name: 'Writer', role: 'Marketing Agent', room: 'marketing', avatar: '✍️', cpu: 41, ram: 35, focus: 77, task: 'Piše opis projekta za GitHub', memory: ['Ton: startup/open-source', 'Objasniti lokalni AI'], chat: [] },
-  { id: 'cfo', name: 'CFO', role: 'Finance Agent', room: 'finance', avatar: '💰', cpu: 19, ram: 28, focus: 65, task: 'Procjenjuje trošak lokalnog i cloud rada', memory: ['Lokalni modeli smanjuju API trošak'], chat: [] },
-  { id: 'opsbot', name: 'OpsBot', role: 'Automation Agent', room: 'ops', avatar: '⚙️', cpu: 52, ram: 49, focus: 73, task: 'Planira integracije: GitHub, Gmail, Telegram', memory: ['Plugin sustav je faza 2'], chat: [] },
+const defaults=[
+{id:'alpha',name:'Alpha',role:'CEO agent',model:'Qwen 3',room:'ceo',avatar:'🧠',shirt:'#e86c91',hair:'#59382f',energy:88,focus:82,mood:86,cpu:34,traits:['Analitičan','Ambiciozan','Vođa'],task:'Planira sljedeći proizvodni sprint',memory:['Pokrenuta nova faza enginea','Prioritet je osjećaj žive AI firme'],chat:[],x:105,y:110},
+{id:'coder',name:'Nova',role:'Developer',model:'DeepSeek Coder',room:'dev',avatar:'👩‍💻',shirt:'#547de8',hair:'#3a2c28',energy:73,focus:91,mood:75,cpu:62,traits:['Brza','Logična','Noćna ptica'],task:'Gradi izometrijski engine',memory:['UI više nije običan dashboard'],chat:[],x:105,y:112},
+{id:'researcher',name:'Atlas',role:'Researcher',model:'Llama 3.3',room:'research',avatar:'🔎',shirt:'#42a983',hair:'#6b472e',energy:81,focus:87,mood:79,cpu:45,traits:['Znatiželjan','Temeljit','Miran'],task:'Istražuje agent workflows',memory:['Sobe moraju mijenjati ponašanje agenta'],chat:[],x:98,y:115},
+{id:'writer',name:'Mira',role:'Creative agent',model:'Gemma 3',room:'marketing',avatar:'✍️',shirt:'#e5a33d',hair:'#8a5438',energy:77,focus:74,mood:92,cpu:39,traits:['Kreativna','Društvena','Optimist'],task:'Oblikuje priču AI Sims OS-a',memory:['Vizual treba biti topao i razigran'],chat:[],x:102,y:110},
+{id:'tester',name:'Pixel',role:'QA agent',model:'Mistral',room:'qa',avatar:'🧪',shirt:'#8a68d8',hair:'#352c43',energy:69,focus:89,mood:71,cpu:57,traits:['Skeptičan','Precizan','Uporan'],task:'Testira interakcije i stanje svijeta',memory:['Svaki klik mora imati smisla'],chat:[],x:105,y:112},
+{id:'ops',name:'Bolt',role:'Ops agent',model:'Qwen 3',room:'lounge',avatar:'⚙️',shirt:'#67a64c',hair:'#4b4031',energy:64,focus:68,mood:84,cpu:51,traits:['Praktičan','Pouzdan','Automatizira'],task:'Čeka sljedeći deploy',memory:['GitHub Pages objavljuje main granu'],chat:[],x:100,y:112}
 ];
-
-const defaultTasks = [
-  'Napravi GitHub Pages demo',
-  'Dodaj lokalni Ollama bridge',
-  'Nacrtaj bolju izometrijsku kuću',
-  'Dodaj task board i delegaciju',
-  'Pretvori MVP u React aplikaciju'
-];
-
-let state = JSON.parse(localStorage.getItem('aiSimsState') || 'null') || {
-  day: 1,
-  minutes: 9 * 60,
-  running: false,
-  selectedAgentId: 'alpha',
-  agents: defaultAgents,
-  tasks: defaultTasks,
-};
-
-let timer = null;
-const $ = (id) => document.getElementById(id);
-
-function saveState() {
-  localStorage.setItem('aiSimsState', JSON.stringify(state));
-}
-
-function clamp(n, min = 0, max = 100) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function timeLabel() {
-  const h = Math.floor(state.minutes / 60) % 24;
-  const m = state.minutes % 60;
-  return `Dan ${state.day} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function roomAgents(roomId) {
-  return state.agents.filter((a) => a.room === roomId);
-}
-
-function agentPosition(index) {
-  const positions = [[28, 82], [128, 96], [72, 152], [176, 144], [220, 82], [30, 154]];
-  return positions[index % positions.length];
-}
-
-function selectedAgent() {
-  return state.agents.find((a) => a.id === state.selectedAgentId);
-}
-
-function render() {
-  $('worldTime').textContent = timeLabel();
-  $('taskCount').textContent = `${state.tasks.length} zadataka`;
-  $('tickBtn').textContent = state.running ? '⏸ Pauziraj simulaciju' : '▶ Pokreni simulaciju';
-  renderHouse();
-  renderAgentList();
-  renderInspector();
-}
-
-function renderHouse() {
-  const house = $('house');
-  house.innerHTML = '';
-
-  rooms.forEach((room) => {
-    const el = document.createElement('div');
-    el.className = 'room';
-    el.dataset.roomId = room.id;
-    el.innerHTML = `
-      <div class="roomHeader">
-        <div>
-          <div class="roomTitle">${room.name}</div>
-          <div class="roomPurpose">${room.purpose}</div>
-        </div>
-        <div>${roomAgents(room.id).length} 🤖</div>
-      </div>
-    `;
-
-    el.addEventListener('dragover', (e) => e.preventDefault());
-    el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const agentId = e.dataTransfer.getData('text/plain');
-      moveAgent(agentId, room.id);
-    });
-
-    roomAgents(room.id).forEach((agent, i) => {
-      const [left, top] = agentPosition(i);
-      const node = document.createElement('div');
-      node.className = 'agent';
-      node.draggable = true;
-      node.style.left = `${left}px`;
-      node.style.top = `${top}px`;
-      node.innerHTML = `
-        <div class="avatar">${agent.avatar}</div>
-        <div class="agentNameSmall">${agent.name}</div>
-        <div class="bubble">${bubbleText(agent)}</div>
-      `;
-      node.addEventListener('click', () => selectAgent(agent.id));
-      node.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', agent.id));
-      el.appendChild(node);
-    });
-
-    house.appendChild(el);
-  });
-}
-
-function renderAgentList() {
-  const list = $('agentList');
-  list.innerHTML = '';
-  state.agents.forEach((agent) => {
-    const item = document.createElement('div');
-    item.className = 'agentListItem';
-    item.innerHTML = `
-      <div class="avatar">${agent.avatar}</div>
-      <div>
-        <strong>${agent.name}</strong>
-        <p>${agent.role}</p>
-      </div>
-    `;
-    item.addEventListener('click', () => selectAgent(agent.id));
-    list.appendChild(item);
-  });
-}
-
-function renderInspector() {
-  const agent = selectedAgent();
-  $('emptyInspector').classList.toggle('hidden', Boolean(agent));
-  $('agentInspector').classList.toggle('hidden', !agent);
-  if (!agent) return;
-
-  $('avatarBig').textContent = agent.avatar;
-  $('agentName').textContent = agent.name;
-  $('agentRole').textContent = `${agent.role} · ${rooms.find((r) => r.id === agent.room)?.name || agent.room}`;
-  $('cpu').value = agent.cpu;
-  $('ram').value = agent.ram;
-  $('focus').value = agent.focus;
-  $('currentTask').textContent = agent.task;
-  $('memoryList').innerHTML = agent.memory.slice(0, 8).map((m) => `<li>${m}</li>`).join('');
-
-  $('chatLog').innerHTML = agent.chat.length
-    ? agent.chat.slice(-14).map((m) => `<div class="message"><strong>${m.from}:</strong> ${m.text}</div>`).join('')
-    : '<p>Još nema poruka. Pošalji agentu prvu uputu.</p>';
-  $('chatLog').scrollTop = $('chatLog').scrollHeight;
-}
-
-function selectAgent(agentId) {
-  state.selectedAgentId = agentId;
-  saveState();
-  render();
-}
-
-function moveAgent(agentId, roomId) {
-  const agent = state.agents.find((a) => a.id === agentId);
-  const room = rooms.find((r) => r.id === roomId);
-  if (!agent || !room) return;
-  agent.room = roomId;
-  agent.memory.unshift(`Premješten u ${room.name}`);
-  agent.chat.push({ from: agent.name, text: `Preuzimam kontekst sobe: ${room.purpose}.` });
-  state.selectedAgentId = agentId;
-  saveState();
-  render();
-}
-
-function bubbleText(agent) {
-  if (agent.focus > 80) return 'Duboki fokus...';
-  if (agent.cpu > 70) return 'Opterećen sam!';
-  if (agent.chat.length) return agent.chat[agent.chat.length - 1].text.slice(0, 34) + '...';
-  return agent.task.slice(0, 32) + '...';
-}
-
-function simulationStep() {
-  state.minutes += 15;
-  if (state.minutes >= 24 * 60) {
-    state.minutes = 8 * 60;
-    state.day += 1;
-  }
-
-  state.agents.forEach((agent) => {
-    agent.cpu = clamp(agent.cpu + Math.round(Math.random() * 18 - 8));
-    agent.ram = clamp(agent.ram + Math.round(Math.random() * 12 - 5));
-    agent.focus = clamp(agent.focus + Math.round(Math.random() * 14 - 6));
-
-    if (Math.random() > 0.66 && state.tasks.length) {
-      const task = state.tasks[Math.floor(Math.random() * state.tasks.length)];
-      agent.task = task;
-      agent.chat.push({ from: agent.name, text: `Radim na: ${task}` });
-    }
-
-    if (Math.random() > 0.82) {
-      const targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
-      agent.room = targetRoom.id;
-      agent.memory.unshift(`Samostalno otišao u ${targetRoom.name}`);
-    }
-
-    agent.memory = agent.memory.slice(0, 8);
-    agent.chat = agent.chat.slice(-12);
-  });
-
-  saveState();
-  render();
-}
-
-function toggleSimulation() {
-  state.running = !state.running;
-  if (state.running) timer = setInterval(simulationStep, 1800);
-  else clearInterval(timer);
-  saveState();
-  render();
-}
-
-function addTask() {
-  const task = prompt('Upiši novi zadatak za AI tim:');
-  if (!task) return;
-  state.tasks.unshift(task);
-  const agent = selectedAgent() || state.agents[0];
-  agent.task = task;
-  agent.chat.push({ from: agent.name, text: `Preuzimam novi zadatak: ${task}` });
-  agent.memory.unshift(`Dobio novi zadatak: ${task}`);
-  saveState();
-  render();
-}
-
-function sendChat() {
-  const input = $('chatText');
-  const text = input.value.trim();
-  const agent = selectedAgent();
-  if (!text || !agent) return;
-
-  agent.chat.push({ from: 'Ti', text });
-  agent.memory.unshift(`Uputa korisnika: ${text}`);
-  agent.task = text;
-  agent.chat.push({ from: agent.name, text: localReply(agent, text) });
-  input.value = '';
-  saveState();
-  render();
-}
-
-function localReply(agent, text) {
-  const lower = text.toLowerCase();
-  if (lower.includes('github')) return 'Mogu pripremiti commit plan i raspodijeliti posao developer agentu.';
-  if (lower.includes('ollama') || lower.includes('lokal')) return 'Za lokalni AI trebamo mali backend bridge koji šalje prompt na Ollama API.';
-  if (lower.includes('marketing')) return 'Prebacujem kontekst u marketing: landing page, demo video i open-source priča.';
-  return `Primljeno. Pretvaram u zadatak i pamtim kao dio konteksta sobe ${rooms.find((r) => r.id === agent.room)?.name}.`;
-}
-
-$('tickBtn').addEventListener('click', toggleSimulation);
-$('addTaskBtn').addEventListener('click', addTask);
-$('saveBtn').addEventListener('click', () => { saveState(); alert('Svijet je spremljen u browser localStorage.'); });
-$('resetBtn').addEventListener('click', () => { if (confirm('Resetirati AI Sims svijet?')) { localStorage.removeItem('aiSimsState'); location.reload(); } });
-$('sendChat').addEventListener('click', sendChat);
-$('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
-
-render();
+const stored=JSON.parse(localStorage.getItem('aiSimsV2')||'null');
+let state=stored||{agents:defaults,selected:'alpha',day:1,minute:9*60,speed:1,tasks:['Dovrši izometrijsku kuću','Dodaj pravi lokalni AI','Napravi task board'],cost:0};
+let zoom=1,pan={x:0,y:0},drag=null,tick=0;
+const $=id=>document.getElementById(id),clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,n));
+function save(){localStorage.setItem('aiSimsV2',JSON.stringify(state))}
+function room(id){return rooms.find(r=>r.id===id)}
+function agent(id){return state.agents.find(a=>a.id===id)}
+function time(){let h=Math.floor(state.minute/60)%24,m=state.minute%60;return`Dan ${state.day} · ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
+function render(){renderHouse();renderList();renderInspector();$('worldTime').textContent=time();$('agentCount').textContent=state.agents.length;$('taskCount').textContent=state.tasks.length;$('costCount').textContent=`€${state.cost.toFixed(2)}`;$('speedLabel').textContent=state.speed===0?'PAUZA':state.speed===1?'1× BRZINA':'3× BRZINA';document.body.classList.toggle('night',state.minute<7*60||state.minute>19*60);$('dayIcon').textContent=document.body.classList.contains('night')?'🌙':'☀️';updateCamera()}
+function renderHouse(){const h=$('house');h.innerHTML='';rooms.forEach(r=>{const el=document.createElement('div');el.className='room';el.style.cssText=`left:${r.x}px;top:${r.y}px;background:${r.color}`;el.innerHTML=`<div class="room-label">${r.name}</div>`;r.furniture.forEach(f=>{const n=document.createElement('div');n.className='furniture';n.textContent=f[0];n.style.left=f[1]+'px';n.style.top=f[2]+'px';el.appendChild(n)});state.agents.filter(a=>a.room===r.id).forEach(a=>{const n=document.createElement('div');n.className='agent'+(state.selected===a.id?' selected':'')+(a.walking?' walking':'')+(a.talking?' talking':'');n.style.left=a.x+'px';n.style.top=a.y+'px';n.style.setProperty('--shirt',a.shirt);n.style.setProperty('--hair',a.hair);n.innerHTML=`<div class="speech">${a.say||a.task}</div><div class="hair"></div><div class="head"></div><div class="body"></div><div class="legs"></div>`;n.onclick=e=>{e.stopPropagation();state.selected=a.id;save();render()};el.appendChild(n)});h.appendChild(el)})}
+function renderList(){const l=$('agentList');l.innerHTML='';state.agents.forEach(a=>{const n=document.createElement('div');n.className='agent-list-item'+(state.selected===a.id?' selected':'');n.innerHTML=`<div class="mini-avatar">${a.avatar}</div><div><b>${a.name}</b><small>${a.role}</small></div><i class="status-dot"></i>`;n.onclick=()=>{state.selected=a.id;render()};l.appendChild(n)})}
+function renderInspector(){const a=agent(state.selected);$('emptyInspector').classList.toggle('hidden',!!a);$('agentInspector').classList.toggle('hidden',!a);if(!a)return;$('avatarBig').textContent=a.avatar;$('agentName').textContent=a.name;$('agentRole').textContent=`${a.role} · ${room(a.room).name}`;$('agentModel').textContent=a.model;$('energy').value=a.energy;$('focus').value=a.focus;$('mood').value=a.mood;$('cpu').value=a.cpu;$('currentTask').textContent=a.task;$('traits').innerHTML=a.traits.map(t=>`<span>${t}</span>`).join('');$('memoryList').innerHTML=a.memory.slice(0,6).map(m=>`<li>${m}</li>`).join('');$('chatLog').innerHTML=a.chat.length?a.chat.slice(-8).map(m=>`<div class="message"><b>${m.from}:</b> ${m.text}</div>`).join(''):'<span>Nema poruka.</span>'}
+function chooseActivity(a){const roll=Math.random();if(roll<.35){const target=room(a.room);a.x=35+Math.random()*125;a.y=70+Math.random()*75;a.walking=true;a.say='Idem do radnog mjesta…'}else if(roll<.55){const options=rooms.filter(r=>r.id!==a.room);const next=options[Math.floor(Math.random()*options.length)];a.room=next.id;a.x=45+Math.random()*115;a.y=82+Math.random()*60;a.walking=true;a.say=`Idem u ${next.name}.`;a.memory.unshift(`Posjetio ${next.name}`)}else{a.walking=false;a.talking=true;a.say=['Radim na zadatku.','Trebam kratki review.','Imam novu ideju!','Šaljem status timu.'][Math.floor(Math.random()*4)];a.chat.push({from:a.name,text:a.say})}setTimeout(()=>{a.walking=false;a.talking=false;renderHouse()},1200)}
+function simulate(){if(!state.speed)return;tick++;state.minute+=5*state.speed;if(state.minute>=1440){state.minute=7*60;state.day++}state.cost+=.002*state.speed;state.agents.forEach(a=>{a.energy=clamp(a.energy-(Math.random()*1.4)*state.speed);a.focus=clamp(a.focus+(Math.random()*4-2));a.mood=clamp(a.mood+(Math.random()*3-1.5));a.cpu=clamp(25+Math.random()*55);if(tick%(state.speed===3?2:5)===0)chooseActivity(a)});save();render()}
+function updateCamera(){$('camera').style.transform=`translate(${pan.x}px,${pan.y}px) scale(${zoom})`}
+$('viewport').onpointerdown=e=>{if(e.target.closest('.agent'))return;drag={x:e.clientX,y:e.clientY,px:pan.x,py:pan.y};$('viewport').classList.add('dragging')};window.onpointermove=e=>{if(!drag)return;pan.x=drag.px+e.clientX-drag.x;pan.y=drag.py+e.clientY-drag.y;updateCamera()};window.onpointerup=()=>{drag=null;$('viewport').classList.remove('dragging')};$('viewport').onwheel=e=>{e.preventDefault();zoom=clamp(zoom-e.deltaY*.001,.55,1.6);updateCamera()};$('zoomIn').onclick=()=>{zoom=clamp(zoom+.12,.55,1.6);updateCamera()};$('zoomOut').onclick=()=>{zoom=clamp(zoom-.12,.55,1.6);updateCamera()};$('zoomReset').onclick=()=>{zoom=1;pan={x:0,y:0};updateCamera()};
+function setSpeed(s){state.speed=s;document.querySelectorAll('.play-controls button').forEach(b=>b.classList.remove('active'));({0:'pauseBtn',1:'playBtn',3:'fastBtn'})[s]&&$(({0:'pauseBtn',1:'playBtn',3:'fastBtn'})[s]).classList.add('active');save();render()}
+$('pauseBtn').onclick=()=>setSpeed(0);$('playBtn').onclick=()=>setSpeed(1);$('fastBtn').onclick=()=>setSpeed(3);$('addTaskBtn').onclick=()=>{const t=prompt('Novi zadatak za AI kompaniju:');if(!t)return;state.tasks.unshift(t);const a=agent(state.selected)||state.agents[0];a.task=t;a.memory.unshift(`Novi zadatak: ${t}`);save();render()};$('sendChat').onclick=()=>{const input=$('chatText'),text=input.value.trim(),a=agent(state.selected);if(!text||!a)return;a.chat.push({from:'Ti',text});a.task=text;a.say='Primljeno. Krećem!';a.talking=true;a.memory.unshift(`Uputa: ${text}`);input.value='';save();render();setTimeout(()=>{a.talking=false;renderHouse()},1600)};$('chatText').onkeydown=e=>{if(e.key==='Enter')$('sendChat').click()};$('resetBtn').onclick=()=>{if(confirm('Napraviti novi AI Sims svijet?')){localStorage.removeItem('aiSimsV2');location.reload()}};
+setInterval(simulate,1100);render();
