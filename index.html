@@ -1,59 +1,13 @@
 <!doctype html>
 <html lang="hr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Sims OS</title>
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <div id="game">
-    <header class="hud top-hud">
-      <div class="brand"><div class="plumbob">◆</div><div><strong>AI Sims OS</strong><small>živa AI kompanija</small></div></div>
-      <div class="clock"><span id="dayIcon">☀️</span><strong id="worldTime">Dan 1 · 09:00</strong><span id="speedLabel">PAUZA</span></div>
-      <div class="hud-actions"><button id="zoomOut">−</button><button id="zoomReset">⌂</button><button id="zoomIn">＋</button></div>
-    </header>
-
-    <aside class="left-panel glass">
-      <h2>AI tim</h2>
-      <div id="agentList"></div>
-      <button id="addTaskBtn" class="wide">＋ Novi zadatak</button>
-    </aside>
-
-    <main id="viewport">
-      <div id="skyGlow"></div>
-      <div id="camera">
-        <div id="world">
-          <div class="ground-shadow"></div>
-          <section id="house"></section>
-        </div>
-      </div>
-      <div class="hint">Povuci pozadinu za kameru · kotačić za zoom · klikni lika</div>
-    </main>
-
-    <aside class="right-panel glass">
-      <div id="emptyInspector" class="empty-state"><div class="big-icon">🏠</div><h2>AI kuća živi</h2><p>Klikni malog agenta da vidiš njegove potrebe, zadatak, model i memoriju.</p></div>
-      <div id="agentInspector" class="hidden">
-        <div class="agent-profile"><div id="avatarBig" class="portrait">🤖</div><div><h2 id="agentName"></h2><p id="agentRole"></p><span id="agentModel" class="pill"></span></div></div>
-        <div class="need-grid">
-          <label>⚡ Energija <progress id="energy" max="100"></progress></label>
-          <label>🎯 Fokus <progress id="focus" max="100"></progress></label>
-          <label>😊 Raspoloženje <progress id="mood" max="100"></progress></label>
-          <label>🧠 CPU <progress id="cpu" max="100"></progress></label>
-        </div>
-        <section><h3>Trenutna aktivnost</h3><div id="currentTask" class="task-card"></div></section>
-        <section><h3>Osobnost</h3><div id="traits" class="traits"></div></section>
-        <section><h3>Zadnja sjećanja</h3><ul id="memoryList" class="memory"></ul></section>
-        <section><h3>Razgovor</h3><div id="chatLog" class="chat"></div><div class="chat-input"><input id="chatText" placeholder="Daj agentu uputu..." /><button id="sendChat">➤</button></div></section>
-      </div>
-    </aside>
-
-    <footer class="hud bottom-hud">
-      <div class="play-controls"><button id="pauseBtn">⏸</button><button id="playBtn" class="active">▶</button><button id="fastBtn">▶▶</button></div>
-      <div class="world-status"><span>👥 <b id="agentCount">0</b> agenata</span><span>📋 <b id="taskCount">0</b> zadataka</span><span>💰 <b id="costCount">€0.00</b></span></div>
-      <button id="resetBtn" class="danger">Novi svijet</button>
-    </footer>
-  </div>
-  <script src="./app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#8bc7ee" />
+    <title>AI Sims OS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
