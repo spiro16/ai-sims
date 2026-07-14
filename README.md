@@ -1,77 +1,75 @@
 # AI Sims OS
 
-AI Sims OS je rani web MVP za upravljanje AI agentima kroz sobe, gotovo kao mini Sims/RimWorld kontrolni centar.
+AI Sims OS je vizualni operativni sustav za AI agente: mala Sims-style AI kompanija u kojoj agenti imaju sobe, zadatke, modele, potrebe i ponašanje.
 
-Trenutna verzija radi kao obična statička web aplikacija u browseru. Nema instalacije, nema ZIP-a i nema backend-a.
+Projekt je sada prebačen na **React + Vite + PixiJS**. Stari HTML/CSS demo više nije glavni smjer.
 
-## Što trenutno radi
+## Otvori odmah
 
-- sobe/departmani za AI agente
-- agenti se mogu premještati drag-and-dropom
-- agenti se sami kreću dok simulacija radi
-- klik na agenta otvara status panel
-- CPU/RAM/fokus indikatori
-- memorija po agentu
-- chat s agentom
-- task queue
-- spremanje svijeta u browser localStorage
-
-## Kako pokrenuti preko GitHub Pages
-
-1. Otvori repo na GitHubu.
-2. Idi na **Settings**.
-3. Lijevo otvori **Pages**.
-4. Pod **Build and deployment** odaberi:
-   - Source: **Deploy from a branch**
-   - Branch: **main**
-   - Folder: **/root**
-5. Klikni **Save**.
-6. Nakon kratkog vremena app će biti na:
+### Opcija A — GitHub Pages
 
 ```txt
 https://spiro16.github.io/ai-sims/
 ```
 
-## Lokalno pokretanje
+GitHub Pages se automatski deploya iz `main` grane preko GitHub Actions workflowa.
 
-Možeš otvoriti `index.html` direktno u browseru.
-
-Za jednostavni lokalni server:
-
-```bash
-python3 -m http.server 8000
-```
-
-Zatim otvori:
+### Opcija B — StackBlitz live dev preview
 
 ```txt
-http://localhost:8000
+https://stackblitz.com/github/spiro16/ai-sims
 ```
 
-## Roadmap
+Ovo je najkorisnije dok razvijamo jer možeš otvoriti projekt kao live Vite aplikaciju u browseru i pratiti promjene.
 
-### Faza 1
+## Lokalno pokretanje
 
-- bolji izometrijski floor plan
-- task board s kolonama
-- kreiranje novih agenata iz UI-ja
-- sobe koje imaju specijalna pravila
+```bash
+npm install --legacy-peer-deps
+npm run dev
+```
 
-### Faza 2
+Zatim otvori URL koji Vite prikaže u terminalu.
 
-- React verzija
+## Trenutno stanje
+
+- React app shell
+- PixiJS renderer
+- dvokatna cutaway kuća
+- zidovi, podovi i stepenice
+- mali crtani agenti
+- izbor kata
+- zoom kontrole
+- osnovni game loop
+- agent status panel
+
+## Sljedeći konkretni milestone
+
+### Engine v2.1
+
+- popravljeni live preview i stabilan deploy
+- bolji Sims-style cutaway osjećaj
+- kamera koja se može pomicati
+- sobe s vratima
+- agenti se kreću po pathfinding točkama
+- stepenice povezuju katove
+
+### Engine v2.2
+
+- sprite animacije hodanja
+- task board
+- agenti delegiraju zadatke
+- sastanci u meeting roomu
+- timeline događaja
+
+### Engine v3
+
 - FastAPI backend
-- SQLite baza
-- WebSocket realtime sync
-- lokalni Ollama bridge
+- SQLite memorija
+- Ollama bridge
+- stvarni lokalni AI agenti
+- GitHub/terminal alati
 
-### Faza 3
+## Vizija
 
-- agenti delegiraju zadatke jedni drugima
-- GitHub/Gmail/Telegram/Discord plugin sustav
-- replay/time-lapse rada
-- dashboard troškova, CPU/RAM i produktivnosti
-
-## Ideja
-
-Cilj je napraviti vizualni operativni sustav za AI agente: umjesto da imaš samo chat prozor, imaš digitalnu firmu s agentima koji rade po sobama, pamte kontekst, preuzimaju zadatke i međusobno surađuju.
+Cilj nije običan dashboard, nego osjećaj da gledaš živu AI firmu: agenti hodaju po kući, razgovaraju, ulaze u sobe, rade na zadacima i pamte što se dogodilo.
