@@ -2,25 +2,37 @@
 
 AI Sims OS je vizualni operativni sustav za AI agente: mala Sims-style AI kompanija u kojoj agenti imaju sobe, zadatke, modele, potrebe i ponašanje.
 
-Projekt je sada prebačen na **React + Vite + PixiJS**. Stari HTML/CSS demo više nije glavni smjer.
+Projekt je sada prebačen na **React + Vite + PixiJS**, ali za praćenje procesa imamo i poseban standalone live preview koji se otvara direktno kao igra.
 
-## Otvori odmah
+## Prati proces uživo
 
-### Opcija A — GitHub Pages
+### Najstabilniji live preview
+
+```txt
+https://raw.githack.com/spiro16/ai-sims/main/live.html
+```
+
+Ovaj link otvara projekt direktno u browseru bez StackBlitz editora, bez npm installa i bez čekanja GitHub Pages builda. Kad ažuriramo `live.html`, samo refreshaj taj link.
+
+### GitHub Pages
 
 ```txt
 https://spiro16.github.io/ai-sims/
 ```
 
-GitHub Pages se automatski deploya iz `main` grane preko GitHub Actions workflowa.
+GitHub Pages se automatski deploya iz `main` grane preko GitHub Actions workflowa. Koristit ćemo ga kao glavni public URL kad build bude stabilan.
 
-### Opcija B — StackBlitz live dev preview
+### StackBlitz dev okruženje
+
+```txt
+https://stackblitz.com/github/spiro16/ai-sims?embed=1&view=preview
+```
+
+Ako želiš i kod i preview, koristi obični StackBlitz URL:
 
 ```txt
 https://stackblitz.com/github/spiro16/ai-sims
 ```
-
-Ovo je najkorisnije dok razvijamo jer možeš otvoriti projekt kao live Vite aplikaciju u browseru i pratiti promjene.
 
 ## Lokalno pokretanje
 
@@ -35,11 +47,12 @@ Zatim otvori URL koji Vite prikaže u terminalu.
 
 - React app shell
 - PixiJS renderer
+- standalone live preview
 - dvokatna cutaway kuća
 - zidovi, podovi i stepenice
 - mali crtani agenti
 - izbor kata
-- zoom kontrole
+- zoom/pan kontrole
 - osnovni game loop
 - agent status panel
 
@@ -47,7 +60,7 @@ Zatim otvori URL koji Vite prikaže u terminalu.
 
 ### Engine v2.1
 
-- popravljeni live preview i stabilan deploy
+- stabilan live preview za praćenje razvoja
 - bolji Sims-style cutaway osjećaj
 - kamera koja se može pomicati
 - sobe s vratima
