@@ -19,14 +19,14 @@
 <body>
   <div id="stage"></div>
   <header class="hud top">
-    <div class="brand"><div class="gem"></div><div><strong>AI Sims OS</strong><small><span class="live-badge">LIVE</span> frontal cutaway · engine v3 tracker</small></div></div>
+    <div class="brand"><div class="gem"></div><div><strong>AI Sims OS</strong><small><span class="live-badge">LIVE</span> smooth agents · frontal cutaway</small></div></div>
     <div class="clock"><strong id="time">Dan 1 · 09:00</strong><span id="speed">PLAY</span></div>
     <div class="zoom"><button id="zoomOut">−</button><button id="zoomHome">⌂</button><button id="zoomIn">＋</button></div>
   </header>
   <aside class="hud left"><h2>AI tim</h2><div id="agentList"></div><button id="newTask" class="wide">＋ Novi zadatak</button></aside>
   <aside class="hud right"><div id="inspector"></div></aside>
   <footer class="hud bottom"><div class="controls"><button id="pause">⏸</button><button id="play" class="active">▶</button><button id="fast">▶▶</button></div><div><b id="count">6</b> agenata · <b id="cost">€0.00</b></div><button id="reset" class="wide" style="width:auto;background:#f8e5e5;color:#9d3636">Reset</button></footer>
-  <div class="hint">Ovo je otvoreni presjek kuće: prednji zid je skinut · kotačić za zoom · klikni agenta</div>
+  <div class="hint">Smooth movement update: agenti sada hodaju prema cilju, ne skaču · kotačić za zoom · klikni agenta</div>
 
   <script type="module">
     import * as PIXI from 'https://esm.sh/pixi.js@7.4.3';
@@ -50,31 +50,47 @@
       {id:'bolt',avatar:'⚙️',name:'Bolt',role:'Ops agent',model:'Qwen 3',room:'lounge',u:.47,d:.57,shirt:0x67a64c,hair:0x493f31,task:'Prati deploy',energy:64,focus:68,mood:84,say:'Deploy je živ.'}
     ];
 
-    let state = JSON.parse(localStorage.getItem('ai-sims-live-v2') || 'null') || {agents:defaults,selected:'alpha',minute:9*60,day:1,speed:1,cost:0};
+    const cleanAgent = (a) => ({
+      ...a,
+      u: Number.isFinite(a.u) ? a.u : .5,
+      d: Number.isFinite(a.d) ? a.d : .58,
+      targetU: Number.isFinite(a.targetU) ? a.targetU : (Number.isFinite(a.u) ? a.u : .5),
+      targetD: Number.isFinite(a.targetD) ? a.targetD : (Number.isFinite(a.d) ? a.d : .58),
+      targetRoom: a.targetRoom || null,
+      phase: a.phase || 'idle',
+      idleUntil: a.idleUntil || 0,
+      bubbleUntil: a.bubbleUntil || 0,
+      facing: a.facing || 1,
+      step: a.step || Math.random()*10,
+      moving: false
+    });
+
+    let state = JSON.parse(localStorage.getItem('ai-sims-live-v3') || 'null') || {agents:defaults.map(cleanAgent),selected:'alpha',minute:9*60,day:1,speed:1,cost:0};
+    state.agents = state.agents.map(cleanAgent);
+
     const app = new PIXI.Application({resizeTo:window,backgroundColor:0x8fc9ee,antialias:true,resolution:window.devicePixelRatio||1,autoDensity:true});
     document.getElementById('stage').appendChild(app.view);
 
     const world = new PIXI.Container(); app.stage.addChild(world);
+    const staticLayer = new PIXI.Container();
+    const agentLayer = new PIXI.Container();
+    world.addChild(staticLayer, agentLayer);
+
     let zoom=1, dragging=false, dragStart={x:0,y:0,wx:0,wy:0};
     const roomById=id=>rooms.find(r=>r.id===id); const agentById=id=>state.agents.find(a=>a.id===id);
-    const save=()=>localStorage.setItem('ai-sims-live-v2',JSON.stringify(state));
+    const save=()=>localStorage.setItem('ai-sims-live-v3',JSON.stringify(state));
     const clamp=(n,a=0,b=100)=>Math.max(a,Math.min(b,n));
+    const lerp=(a,b,t)=>a+(b-a)*t;
 
-    const layout = {
-      roomW: 205,
-      roomH: 126,
-      depth: 58,
-      floorGap: 44,
-      wall: 12,
-      x0: -420,
-      y0: -210
-    };
+    const layout = { roomW:205, roomH:126, depth:58, floorGap:44, x0:-420, y0:-210 };
     function roomRect(room){
-      const w = layout.roomW*room.span;
-      const x = layout.x0 + room.col*layout.roomW;
-      const y = layout.y0 + (1-room.floor)*(layout.roomH+layout.depth+layout.floorGap);
+      const w=layout.roomW*room.span;
+      const x=layout.x0+room.col*layout.roomW;
+      const y=layout.y0+(1-room.floor)*(layout.roomH+layout.depth+layout.floorGap);
       return {x,y,w,h:layout.roomH,d:layout.depth};
     }
+    const doorFor = (room) => ({u: room.col === 0 ? .82 : room.col === 3 ? .18 : .5, d:.88});
+    const randomSpot = (roomId) => ({u:.22+Math.random()*.56, d:.42+Math.random()*.38});
 
     function poly(g,pts,fill,line=0x6f6259,alpha=1){g.lineStyle(2,line,.85);g.beginFill(fill,alpha);g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();g.endFill();}
     function label(text,x,y,size=14,color=0x25344d){const t=new PIXI.Text(text,{fontFamily:'Arial',fontSize:size,fontWeight:'700',fill:color,stroke:0xffffff,strokeThickness:3});t.x=x;t.y=y;return t;}
@@ -84,9 +100,8 @@
       g.beginFill(0x8fc9ee);g.drawRect(-3000,-3000,6000,6000);g.endFill();
       g.beginFill(0xfff2a6,.8);g.drawCircle(520,-350,64);g.endFill();
       g.beginFill(0x78bd70);g.drawRect(-3000,340,6000,3000);g.endFill();
-      world.addChild(g);
+      staticLayer.addChild(g);
     }
-
     function drawHouseShell(){
       const g=new PIXI.Graphics();
       const x=layout.x0-28, top=layout.y0-56, w=layout.roomW*4+56, h=(layout.roomH+layout.depth)*2+layout.floorGap+72;
@@ -94,39 +109,31 @@
       g.beginFill(0xf7efe5);g.drawRoundedRect(x,top,w,h,10);g.endFill();
       g.beginFill(0xd9c7b4);g.drawRect(x,top+h-16,w,24);g.endFill();
       g.beginFill(0x000000,.09);g.drawRoundedRect(x+18,top+h-5,w-36,30,18);g.endFill();
-      world.addChild(g);
+      staticLayer.addChild(g);
     }
-
-    function drawRoom(layer,room){
+    function drawRoom(room){
       const r=roomRect(room), d=r.d;
       const g=new PIXI.Graphics();
-      // back wall
       g.beginFill(0xfffbf5);g.drawRect(r.x,r.y,r.w,r.h);g.endFill();
       g.beginFill(room.color,.55);g.drawRect(r.x+6,r.y+8,r.w-12,r.h-14);g.endFill();
-      // side walls with depth; front remains open
       poly(g,[[r.x,r.y],[r.x+d*.45,r.y+d*.42],[r.x+d*.45,r.y+r.h+d*.42],[r.x,r.y+r.h]],0xe6d9ca);
       poly(g,[[r.x+r.w,r.y],[r.x+r.w+d*.45,r.y+d*.42],[r.x+r.w+d*.45,r.y+r.h+d*.42],[r.x+r.w,r.y+r.h]],0xd8cbbd);
-      // floor plane
       poly(g,[[r.x,r.y+r.h],[r.x+r.w,r.y+r.h],[r.x+r.w+d*.45,r.y+r.h+d],[r.x+d*.45,r.y+r.h+d]],room.color,0x75685e);
-      // room posts and front beam
       g.lineStyle(7,0x6f6259,.38);g.moveTo(r.x,r.y);g.lineTo(r.x,r.y+r.h);g.moveTo(r.x+r.w,r.y);g.lineTo(r.x+r.w,r.y+r.h);g.moveTo(r.x,r.y+r.h);g.lineTo(r.x+r.w,r.y+r.h);
-      // grid on floor
       g.lineStyle(1,0xffffff,.28);
       for(let i=1;i<4;i++){const xx=r.x+(r.w/4)*i;g.moveTo(xx,r.y+r.h);g.lineTo(xx+d*.45,r.y+r.h+d)}
       for(let i=1;i<3;i++){const yy=r.y+r.h+(d/3)*i;g.moveTo(r.x+d*.15*i,yy);g.lineTo(r.x+r.w+d*.15*i,yy)}
-      layer.addChild(g);
-      layer.addChild(label(room.name,r.x+14,r.y+12));
-      room.items.forEach((item,i)=>{const t=new PIXI.Text(item,{fontSize:29,dropShadow:true,dropShadowDistance:3});t.anchor.set(.5);t.x=r.x+r.w*(.25+.24*i);t.y=r.y+r.h+d*(.48+.08*(i%2));layer.addChild(t);});
+      staticLayer.addChild(g);
+      staticLayer.addChild(label(room.name,r.x+14,r.y+12));
+      room.items.forEach((item,i)=>{const t=new PIXI.Text(item,{fontSize:29,dropShadow:true,dropShadowDistance:3});t.anchor.set(.5);t.x=r.x+r.w*(.25+.24*i);t.y=r.y+r.h+d*(.48+.08*(i%2));staticLayer.addChild(t);});
     }
-
     function drawSlab(y){
       const g=new PIXI.Graphics();
       const x=layout.x0-14, w=layout.roomW*4+28;
       g.beginFill(0x9d8876);g.drawRect(x,y,w,15);g.endFill();
       g.beginFill(0x75685e);g.drawRect(x,y+14,w,10);g.endFill();
-      world.addChild(g);
+      staticLayer.addChild(g);
     }
-
     function drawStairs(){
       const g=new PIXI.Container();
       const bottom=roomRect(roomById('dev')), top=roomRect(roomById('research'));
@@ -137,54 +144,169 @@
         g.addChild(step);
       }
       const rail=new PIXI.Graphics();rail.lineStyle(4,0x6f6259,.65);rail.moveTo(bottom.x+bottom.w-32,bottom.y+bottom.h+bottom.d-48);rail.lineTo(top.x+18,top.y+top.h+top.d+20);g.addChild(rail);
-      world.addChild(g);
+      staticLayer.addChild(g);
     }
-
-    function agentPosition(a){const rr=roomRect(roomById(a.room));return {x:rr.x+rr.w*a.u+rr.d*.45*a.d,y:rr.y+rr.h+rr.d*a.d};}
-    function drawAgent(layer,a){
-      const p=agentPosition(a), c=new PIXI.Container();c.x=p.x;c.y=p.y;c.eventMode='static';c.cursor='pointer';c.on('pointertap',()=>{state.selected=a.id;save();renderUI();render();});
-      const shadow=new PIXI.Graphics();shadow.beginFill(0x000000,.18);shadow.drawEllipse(0,8,23,8);shadow.endFill();c.addChild(shadow);
-      if(state.selected===a.id){const gem=new PIXI.Graphics();gem.beginFill(0x4ed16f);gem.moveTo(0,-98);gem.lineTo(12,-77);gem.lineTo(0,-54);gem.lineTo(-12,-77);gem.closePath();gem.endFill();c.addChild(gem);}
-      const body=new PIXI.Graphics();body.beginFill(a.shirt);body.drawRoundedRect(-13,-43,26,36,8);body.endFill();body.beginFill(0xf0bd8f);body.drawCircle(0,-59,14);body.endFill();body.beginFill(a.hair);body.drawRoundedRect(-14,-73,28,14,7);body.endFill();body.beginFill(0x25334d);body.drawRect(-11,-8,7,20);body.drawRect(4,-8,7,20);body.endFill();c.addChild(body);
-      if(Math.random()>.62){const bubble=new PIXI.Container();const bg=new PIXI.Graphics();bg.beginFill(0xffffff,.96);bg.drawRoundedRect(0,0,132,36,12);bg.endFill();bubble.addChild(bg);const tx=new PIXI.Text(a.say,{fontSize:11,fill:0x17233a,wordWrap:true,wordWrapWidth:116});tx.x=8;tx.y=6;bubble.addChild(tx);bubble.x=22;bubble.y=-111;c.addChild(bubble);}
-      const name=label(a.name,0,20,13,0xffffff);name.anchor.set(.5,0);name.style.stroke=0x1f2a3e;name.style.strokeThickness=4;c.addChild(name);
-      layer.addChild(c);
-    }
-
-    function render(){
-      world.removeChildren();
-      world.x=window.innerWidth/2-20;world.y=window.innerHeight/2+60;world.scale.set(zoom);
+    function drawStaticScene(){
+      staticLayer.removeChildren();
       drawSky();drawHouseShell();
-      const roomsLayer=new PIXI.Container();world.addChild(roomsLayer);
-      rooms.filter(r=>r.floor===1).forEach(r=>drawRoom(roomsLayer,r));
+      rooms.filter(r=>r.floor===1).forEach(drawRoom);
       drawSlab(layout.y0+layout.roomH+layout.depth+18);
-      rooms.filter(r=>r.floor===0).forEach(r=>drawRoom(roomsLayer,r));
+      rooms.filter(r=>r.floor===0).forEach(drawRoom);
       drawStairs();
-      const agentLayer=new PIXI.Container();world.addChild(agentLayer);
-      // draw top-floor agents first, then lower-floor agents for proper visual stacking
-      state.agents.filter(a=>roomById(a.room).floor===1).forEach(a=>drawAgent(agentLayer,a));
-      state.agents.filter(a=>roomById(a.room).floor===0).forEach(a=>drawAgent(agentLayer,a));
+    }
+
+    function agentPosition(a){
+      const rr=roomRect(roomById(a.room));
+      return {x:rr.x+rr.w*a.u+rr.d*.45*a.d,y:rr.y+rr.h+rr.d*a.d};
+    }
+
+    const sprites = new Map();
+    function makeAgentSprite(a){
+      const c=new PIXI.Container();
+      c.eventMode='static';c.cursor='pointer';
+      c.on('pointertap',()=>{state.selected=a.id;save();renderUI();updateAgentSprites(0);});
+
+      const shadow=new PIXI.Graphics();shadow.beginFill(0x000000,.18);shadow.drawEllipse(0,8,23,8);shadow.endFill();c.addChild(shadow);
+      const gem=new PIXI.Graphics();gem.beginFill(0x4ed16f);gem.moveTo(0,-98);gem.lineTo(12,-77);gem.lineTo(0,-54);gem.lineTo(-12,-77);gem.closePath();gem.endFill();gem.visible=false;c.addChild(gem);
+      const legs=new PIXI.Graphics();c.addChild(legs);
+      const body=new PIXI.Graphics();body.beginFill(a.shirt);body.drawRoundedRect(-13,-43,26,36,8);body.endFill();body.beginFill(0xf0bd8f);body.drawCircle(0,-59,14);body.endFill();body.beginFill(a.hair);body.drawRoundedRect(-14,-73,28,14,7);body.endFill();c.addChild(body);
+      const bubble=new PIXI.Container();bubble.visible=false;const bg=new PIXI.Graphics();bg.beginFill(0xffffff,.96);bg.drawRoundedRect(0,0,136,38,12);bg.endFill();bubble.addChild(bg);const tx=new PIXI.Text('',{fontSize:11,fill:0x17233a,wordWrap:true,wordWrapWidth:120});tx.x=8;tx.y=6;bubble.addChild(tx);bubble.x=22;bubble.y=-111;c.addChild(bubble);
+      const name=label(a.name,0,20,13,0xffffff);name.anchor.set(.5,0);name.style.stroke=0x1f2a3e;name.style.strokeThickness=4;c.addChild(name);
+      agentLayer.addChild(c);
+      return {container:c, gem, legs, bubble, bubbleText:tx, lastX:null, lastY:null};
+    }
+    function syncAgentSprites(){
+      state.agents.forEach(a=>{if(!sprites.has(a.id))sprites.set(a.id,makeAgentSprite(a));});
+      [...sprites.keys()].forEach(id=>{if(!state.agents.some(a=>a.id===id)){sprites.get(id).container.destroy({children:true});sprites.delete(id);}});
+    }
+    function drawLegs(sprite,a,walk){
+      const g=sprite.legs;g.clear();g.beginFill(0x25334d);
+      const swing = Math.sin(a.step)*walk*4;
+      g.drawRoundedRect(-11+swing,-8,7,21,3);
+      g.drawRoundedRect(4-swing,-8,7,21,3);
+      g.endFill();
+    }
+    function updateAgentSprites(delta){
+      syncAgentSprites();
+      const now=performance.now();
+      state.agents.forEach(a=>{
+        const s=sprites.get(a.id), p=agentPosition(a);
+        const dx=s.lastX===null?0:p.x-s.lastX;
+        const walk = Math.min(1, Math.hypot(dx, s.lastY===null?0:p.y-s.lastY)/3);
+        if(Math.abs(dx)>0.2)a.facing=dx>0?1:-1;
+        a.step += delta*.16*(walk+.15);
+        s.container.x=p.x;s.container.y=p.y-Math.sin(a.step*2)*walk*2;
+        s.container.scale.x=a.facing;
+        s.gem.visible=state.selected===a.id;
+        s.gem.scale.x=a.facing;
+        s.bubble.visible=now<a.bubbleUntil;
+        if(s.bubble.visible){s.bubble.scale.x=a.facing;s.bubbleText.text=a.say||a.task;}
+        drawLegs(s,a,walk);
+        s.lastX=p.x;s.lastY=p.y;
+      });
+      agentLayer.children.sort((a,b)=>a.y-b.y);
+    }
+
+    function distanceToTarget(a){return Math.hypot(a.targetU-a.u,a.targetD-a.d);}
+    function chooseNewGoal(a,now){
+      if(now<a.idleUntil || a.phase!=='idle')return;
+      const currentRoom=roomById(a.room);
+      const roll=Math.random();
+      if(roll<.72){
+        const spot=randomSpot(a.room);
+        a.targetU=spot.u;a.targetD=spot.d;a.phase='walking';
+        a.idleUntil=now+2600+Math.random()*2400;
+      }else{
+        const options=rooms.filter(r=>r.id!==a.room && Math.random()>.25);
+        const next=options[Math.floor(Math.random()*options.length)] || rooms.find(r=>r.id!==a.room);
+        const door=doorFor(currentRoom);
+        a.targetU=door.u;a.targetD=door.d;
+        a.targetRoom=next.id;
+        a.phase='to-door';
+        a.say=`Idem u ${next.name}.`;
+        a.bubbleUntil=now+2200;
+      }
+    }
+    function updateAgentBrain(a,dt,now){
+      const speed = (state.speed===3 ? .010 : .0065) * dt;
+      const beforeU=a.u;
+      a.u=lerp(a.u,a.targetU,Math.min(.18,speed));
+      a.d=lerp(a.d,a.targetD,Math.min(.18,speed));
+      a.moving=distanceToTarget(a)>.012;
+      if(Math.abs(a.u-beforeU)>.0004)a.facing=a.u>beforeU?1:-1;
+
+      if(distanceToTarget(a)<.018){
+        if(a.phase==='to-door'){
+          const next=roomById(a.targetRoom);
+          a.room=next.id;
+          const entry=doorFor(next);
+          a.u=entry.u;
+          a.d=.86;
+          const spot=randomSpot(next.id);
+          a.targetU=spot.u;a.targetD=spot.d;
+          a.phase='entering';
+          a.say=`Stigao/la u ${next.name}.`;
+          a.bubbleUntil=now+1800;
+        }else if(a.phase==='entering' || a.phase==='walking'){
+          a.phase='idle';
+          a.idleUntil=now+1800+Math.random()*3200;
+          if(Math.random()>.62){
+            const lines=['Radim na zadatku.','Trebam kratki review.','Imam novu ideju.','Provjeravam kontekst.'];
+            a.say=lines[Math.floor(Math.random()*lines.length)];
+            a.bubbleUntil=now+1800;
+          }
+        }
+      }
+      chooseNewGoal(a,now);
+      a.energy=clamp(a.energy-.00022*dt*state.speed);
+      a.focus=clamp(a.focus+(Math.random()-.5)*.025*dt/16);
+      a.mood=clamp(a.mood+(Math.random()-.5)*.02*dt/16);
     }
 
     function renderUI(){
       const list=document.getElementById('agentList');list.innerHTML='';
-      state.agents.forEach(a=>{const b=document.createElement('button');b.className='agent-row '+(state.selected===a.id?'active':'');b.innerHTML=`<span class="avatar">${a.avatar}</span><span><b>${a.name}</b><small>${a.role}</small></span>`;b.onclick=()=>{state.selected=a.id;save();renderUI();render();};list.appendChild(b);});
-      const a=agentById(state.selected), r=roomById(a.room);document.getElementById('inspector').innerHTML=`<div class="profile"><div class="portrait">${a.avatar}</div><div><h2>${a.name}</h2><p>${a.role} · ${r.name}</p><span class="pill">${a.model}</span></div></div><section><h3>Trenutni zadatak</h3><div class="card">${a.task}</div></section><section class="meters"><h3>Potrebe</h3><label>⚡ Energija <progress value="${a.energy}" max="100"></progress></label><label>🎯 Fokus <progress value="${a.focus}" max="100"></progress></label><label>😊 Mood <progress value="${a.mood}" max="100"></progress></label></section><section><h3>Vizualni smjer</h3><div class="card">Frontalni cutaway: kuću gledamo sprijeda, prednji zid je skinut, sobe su po katovima i više se ne prekrivaju kao izometrijske ploče.</div></section>`;
+      state.agents.forEach(a=>{const b=document.createElement('button');b.className='agent-row '+(state.selected===a.id?'active':'');b.innerHTML=`<span class="avatar">${a.avatar}</span><span><b>${a.name}</b><small>${a.role}</small></span>`;b.onclick=()=>{state.selected=a.id;save();renderUI();updateAgentSprites(0);};list.appendChild(b);});
+      const a=agentById(state.selected), r=roomById(a.room);document.getElementById('inspector').innerHTML=`<div class="profile"><div class="portrait">${a.avatar}</div><div><h2>${a.name}</h2><p>${a.role} · ${r.name}</p><span class="pill">${a.model}</span></div></div><section><h3>Trenutni zadatak</h3><div class="card">${a.task}</div></section><section class="meters"><h3>Potrebe</h3><label>⚡ Energija <progress value="${a.energy}" max="100"></progress></label><label>🎯 Fokus <progress value="${a.focus}" max="100"></progress></label><label>😊 Mood <progress value="${a.mood}" max="100"></progress></label></section><section><h3>Movement update</h3><div class="card">Likovi sada imaju ciljnu poziciju, glatku interpolaciju, kratke pauze, ulaz/izlaz kroz vrata i stabilne balončiće bez treperenja.</div></section>`;
       const h=Math.floor(state.minute/60)%24,m=state.minute%60;document.getElementById('time').textContent=`Dan ${state.day} · ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;document.getElementById('speed').textContent=state.speed===0?'PAUZA':state.speed===1?'PLAY':'FAST';document.getElementById('count').textContent=state.agents.length;document.getElementById('cost').textContent=`€${state.cost.toFixed(2)}`;
       document.getElementById('pause').classList.toggle('active',state.speed===0);document.getElementById('play').classList.toggle('active',state.speed===1);document.getElementById('fast').classList.toggle('active',state.speed===3);
     }
 
-    function tick(){if(!state.speed)return;state.minute+=4*state.speed;if(state.minute>=1440){state.minute=7*60;state.day++;}state.cost+=.002*state.speed;state.agents.forEach(a=>{a.u=clamp(a.u+(Math.random()*.18-.09),.18,.82);a.d=clamp(a.d+(Math.random()*.14-.07),.32,.88);a.energy=clamp(a.energy-Math.random()*1.1*state.speed);a.focus=clamp(a.focus+Math.random()*4-2);a.mood=clamp(a.mood+Math.random()*3-1.5);if(Math.random()>.84){const choices=rooms.filter(r=>r.id!==a.room);const next=choices[Math.floor(Math.random()*choices.length)];a.room=next.id;a.u=.35+Math.random()*.3;a.d=.45+Math.random()*.25;a.say=`Idem u ${next.name}.`;}});save();renderUI();render();}
-    setInterval(tick,1600);
+    function setWorldTransform(){world.x=window.innerWidth/2-20;world.y=window.innerHeight/2+60;world.scale.set(zoom);}
+    setWorldTransform();
+    drawStaticScene();
+    syncAgentSprites();
 
-    document.getElementById('pause').onclick=()=>{state.speed=0;renderUI();};document.getElementById('play').onclick=()=>{state.speed=1;renderUI();};document.getElementById('fast').onclick=()=>{state.speed=3;renderUI();};
-    document.getElementById('zoomIn').onclick=()=>{zoom=clamp(zoom+.08,.65,1.45);render();};document.getElementById('zoomOut').onclick=()=>{zoom=clamp(zoom-.08,.65,1.45);render();};document.getElementById('zoomHome').onclick=()=>{zoom=1;world.x=window.innerWidth/2-20;world.y=window.innerHeight/2+60;render();};
-    document.getElementById('newTask').onclick=()=>{const t=prompt('Novi zadatak za AI kompaniju:');if(!t)return;const a=agentById(state.selected);a.task=t;a.say='Primljeno. Krećem.';save();renderUI();render();};
-    document.getElementById('reset').onclick=()=>{if(confirm('Resetirati live svijet?')){localStorage.removeItem('ai-sims-live-v2');location.reload();}};
-    app.view.addEventListener('wheel',e=>{e.preventDefault();zoom=clamp(zoom-e.deltaY*.001,.65,1.45);render();},{passive:false});
-    app.view.addEventListener('pointerdown',e=>{dragging=true;dragStart={x:e.clientX,y:e.clientY,wx:world.x,wy:world.y};});window.addEventListener('pointermove',e=>{if(!dragging)return;world.x=dragStart.wx+e.clientX-dragStart.x;world.y=dragStart.wy+e.clientY-dragStart.y;});window.addEventListener('pointerup',()=>dragging=false);
-    window.addEventListener('resize',()=>render());
-    renderUI();render();
+    let uiTimer=0, autosave=0;
+    app.ticker.add((delta)=>{
+      const dt=app.ticker.deltaMS;
+      if(state.speed){
+        state.minute += .045*dt*state.speed;
+        if(state.minute>=1440){state.minute=7*60;state.day++;}
+        state.cost += .0000015*dt*state.speed;
+        const now=performance.now();
+        state.agents.forEach(a=>updateAgentBrain(a,dt,now));
+      }
+      updateAgentSprites(delta);
+      uiTimer+=dt;autosave+=dt;
+      if(uiTimer>700){renderUI();uiTimer=0;}
+      if(autosave>3500){save();autosave=0;}
+    });
+
+    document.getElementById('pause').onclick=()=>{state.speed=0;renderUI();};
+    document.getElementById('play').onclick=()=>{state.speed=1;renderUI();};
+    document.getElementById('fast').onclick=()=>{state.speed=3;renderUI();};
+    document.getElementById('zoomIn').onclick=()=>{zoom=clamp(zoom+.08,.65,1.45);world.scale.set(zoom);};
+    document.getElementById('zoomOut').onclick=()=>{zoom=clamp(zoom-.08,.65,1.45);world.scale.set(zoom);};
+    document.getElementById('zoomHome').onclick=()=>{zoom=1;setWorldTransform();};
+    document.getElementById('newTask').onclick=()=>{const t=prompt('Novi zadatak za AI kompaniju:');if(!t)return;const a=agentById(state.selected);a.task=t;a.say='Primljeno. Krećem.';a.bubbleUntil=performance.now()+2400;save();renderUI();};
+    document.getElementById('reset').onclick=()=>{if(confirm('Resetirati live svijet?')){localStorage.removeItem('ai-sims-live-v3');location.reload()}};
+    app.view.addEventListener('wheel',e=>{e.preventDefault();zoom=clamp(zoom-e.deltaY*.001,.65,1.45);world.scale.set(zoom);},{passive:false});
+    app.view.addEventListener('pointerdown',e=>{dragging=true;dragStart={x:e.clientX,y:e.clientY,wx:world.x,wy:world.y};});
+    window.addEventListener('pointermove',e=>{if(!dragging)return;world.x=dragStart.wx+e.clientX-dragStart.x;world.y=dragStart.wy+e.clientY-dragStart.y;});
+    window.addEventListener('pointerup',()=>dragging=false);
+    window.addEventListener('resize',()=>{if(!dragging)setWorldTransform();drawStaticScene();});
+
+    renderUI();updateAgentSprites(0);
   </script>
 </body>
 </html>
